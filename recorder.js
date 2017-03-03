@@ -57,7 +57,7 @@ let record = function(show) {
     const RECORDING_TIME = `${show.duration * 60 * 60 + 120}`; /* hours -> seconds + two minutes */
     //const RECORDING_TIME = '5'
     const RECORDING_SCRIPT =
-        `${RECORDING_PROGRAM} -l ${RECORDING_URL} ${RECORDING_TIME} ${RECORDING_OPTS} "${filename}"`
+        `${RECORDING_PROGRAM} ${RECORDING_URL} -l ${RECORDING_TIME} ${RECORDING_OPTS} "${filename}"`
 
     console.log( timestamp(),
         "Starting to record",
@@ -100,7 +100,7 @@ let record = function(show) {
                 console.error("STDERR", stderr);
             }
 
-            getPlaylistId /* should already be resolved */
+            getPlaylistID /* should already be resolved */
                 .then(playlist => {
                     /* playlist found */
                     shelljs.mv(`${RECORDING_DIR}/${filename}.mp3`,
