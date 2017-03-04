@@ -42,7 +42,7 @@ spinitron.getUpcomingShowInfo().then(show => {
     );
 
 }).catch(error => {
-    console.error(error);
+    console.error(timestamp(), error);
     /* there is no show scheduled to start next hour. */
     /* since there is no show, we don't need to do anything. */
     process.exit();
@@ -70,6 +70,7 @@ let record = function(show) {
     /* create a promise for playlistID */
     let getPlaylistID = new Promise((resolve, reject) => {
         let playlistFetchTime = moment().second(0).minute(58).add(show.duration - 1, 'hours');
+        console.log(playlistFetchTime);
         scheduler.scheduleJob(playlistFetchTime.toDate(), function() {
             spinitron.getCurrentPlaylist(show)
                 .then(playlist => {
@@ -85,7 +86,7 @@ let record = function(show) {
                     reject(error);
                 })
         });
-    })
+    });
 
     /* Begin recording */
     shelljs.exec(RECORDING_SCRIPT, {
@@ -95,9 +96,9 @@ let record = function(show) {
             console.log(timestamp(), "Recording finished.");
 
             if (code != 0) {
-                console.error("streamripper terminated with non-zero code", code);
-                console.error("STDOUT", stdout);
-                console.error("STDERR", stderr);
+                console.error(timestamp(), "streamripper terminated with non-zero code", code);
+                console.error(timestamp(), "STDOUT", stdout);
+                console.error(timestamp(), "STDERR", stderr);
             }
 
             getPlaylistID /* should already be resolved */
