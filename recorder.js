@@ -69,7 +69,7 @@ let record = function(show) {
 
     /* create a promise for playlistID */
     let getPlaylistID = new Promise((function(show, resolve, reject)  {
-        let playlistFetchTime = moment().second(0).minute(58).add(show.duration - 1, 'hours');
+        let playlistFetchTime = moment().second(0).minute(58).add(show.duration, 'hours');
         console.log(timestamp(), "Scheduled playlist fetch for", playlistFetchTime.format('HH:mm:ss'));
         scheduler.scheduleJob(playlistFetchTime.toDate(), function() {
             spinitron.getCurrentPlaylist(show)
