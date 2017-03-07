@@ -34,7 +34,7 @@ spinitron.getUpcomingShowInfo().then(show => {
     let recordingStartTime = later.hour.end(new Date());
     scheduler.scheduleJob(recordingStartTime, record.bind(null, show))
 
-    console.log( timestamp(),
+    console.log( timestamp(show),
         "Scheduled recording to start at",
         moment(recordingStartTime).format('hh:mma dddd MMMM Qo'),
         "for show",
@@ -59,7 +59,7 @@ let record = function(show) {
     const RECORDING_SCRIPT =
         `${RECORDING_PROGRAM} ${RECORDING_URL} -l ${RECORDING_TIME} ${RECORDING_OPTS} "${filename}"`
 
-    console.log( timestamp(),
+    console.log( timestamp(show),
         "Starting to record",
          show['ShowName'],
          "for",
@@ -69,18 +69,18 @@ let record = function(show) {
 
     /* create a promise for playlistID */
     let getPlaylistID = new Promise((function(show, resolve, reject)  {
-        let playlistFetchTime = moment().second(0).minute(58).add(show.duration, 'hours');
+        let playlistFetchTime = moment(show['OffairTime'], 'HH:m:s').subtract(2, 'minutes');
         console.log(timestamp(), "Scheduled playlist fetch for", playlistFetchTime.format('HH:mm:ss'));
         scheduler.scheduleJob(playlistFetchTime.toDate(), function() {
             spinitron.getCurrentPlaylist(show)
                 .then(playlist => {
-                    console.log( timestamp(),
+                    console.log( timestamp(show),
                         "Successfully fetched current playlist: ", playlist['PlaylistID']
                     );
                     resolve(playlist)
                 })
                 .catch(error => {
-                    console.error( timestamp(),
+                    console.error( timestamp(show),
                         "Failed to fetch current playlist: ", error
                     );
                     reject(error);
@@ -93,12 +93,12 @@ let record = function(show) {
         silent: true
     }, (function(filename, show, getPlaylistID, code, stdout, stderr) {
             /* recording finished! */
-            console.log(timestamp(), "Recording finished.");
+            console.log(timestamp(show), "Recording finished.");
 
             if (code != 0) {
-                console.error(timestamp(), "streamripper terminated with non-zero code", code);
-                console.error(timestamp(), "STDOUT", stdout);
-                console.error(timestamp(), "STDERR", stderr);
+                console.error(timestamp(show), "streamripper terminated with non-zero code", code);
+                console.error(timestamp(show), "STDOUT", stdout);
+                console.error(timestamp(show), "STDERR", stderr);
             }
 
             getPlaylistID /* should already be resolved */
@@ -106,7 +106,7 @@ let record = function(show) {
                     /* playlist found */
                     shelljs.mv(`${RECORDING_DIR}/${filename}.mp3`,
                         `${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`);
-                    console.log(timestamp(),
+                    console.log(timestamp(show),
                         "Moved",
                         `${RECORDING_DIR}/${filename}.mp3 -> ${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`
                     );
@@ -117,7 +117,7 @@ let record = function(show) {
                     /* playlist not found - default name ShowID-M-D-Y.mp3*/
                     shelljs.mv(`${RECORDING_DIR}/${filename}.mp3`,
                         `'${FINISHED_DIR}/${show['ShowID']}-${moment().format('M-D-Y')}.mp3'`);
-                    console.log(timestamp(),
+                    console.log(timestamp(show),
                         "Moved",
                         `${RECORDING_DIR}/${filename}.mp3 -> ${FINISHED_DIR}/${show['ShowID']}-${moment().format('M-D-Y')}.mp3`
                     );
@@ -128,8 +128,8 @@ let record = function(show) {
 };
 
 /* utility to generate timestamps */
-let timestamp = function() {
-    return `[${moment().format('HH:mm:ss')}]`;
+let timestamp = function(show) {
+    return `[${moment().format('HH:mm:ss')} - ${show['ShowName']}]`;
 }
 
 /* backs up file to b2 */
