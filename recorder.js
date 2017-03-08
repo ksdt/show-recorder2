@@ -18,21 +18,28 @@ let spinitron = require('./spinitron.js'),
     shelljs = require('shelljs'),
     later = require('later'),
     moment = require('moment'),
-    scheduler = require('node-schedule');
-
+    scheduler = require('node-schedule'),
+    b2 = require('backblaze-b2'),
+    path = require('path');
 
 /* streamripper opts */
 const RECORDING_PROGRAM = 'streamripper';
 const RECORDING_URL = 'http://ksdt.ucsd.edu:8000/stream';
-const RECORDING_DIR = "./temp_recordings"
+const RECORDING_DIR = "./temp_recordings";
 const RECORDING_OPTS = `-d ${RECORDING_DIR} -s -a`;
-const FINISHED_DIR = "./ps"
+const FINISHED_DIR = "./ps";
 
+let b2 = new b2({
+    accountId: 'accoundid',
+    applicationKey: 'appkey'
+});
+
+const B2_BUCKET = 'bukket';
 
 spinitron.getUpcomingShowInfo().then(show => {
     /* schedule recording to start at the top of the hour */
     let recordingStartTime = later.hour.end(new Date());
-    scheduler.scheduleJob(recordingStartTime, record.bind(null, show))
+    scheduler.scheduleJob(recordingStartTime, record.bind(null, show));
 
     console.log( timestamp(show),
         "Scheduled recording to start at",
@@ -129,10 +136,30 @@ let record = function(show) {
 
 /* utility to generate timestamps */
 let timestamp = function(show) {
-    return `[${moment().format('HH:mm:ss')} - ${show['ShowName']}]`;
+    return `[${moment().format('HH:mm:ss')}${show ? " - " + show['ShowName'] : ""}]`;
 }
 
 /* backs up file to b2 */
-let b2 = function(filename) {
-
+let backup = function(show, filename) {
+    b2.authorize().then(
+        () => {
+            b2.getUploadUrl(B2_BUCKET).then(
+                    (response) => {
+                        fs.readFile(filename, function(err, data) {
+                            b2.uploadFile( {
+                                uploadUrl: response.uploadUrl,
+                                uploadAuthToken: response.authorizationToken,
+                                filename: encodeURIComponent(path.basename(filename])),
+                                data: data
+                            }).then(
+                                (response) => {console.log(timestamp(show), 'Successfully uploaded.')},
+                                (error) => {console.error(timestamp(show), '[UPLOAD ERROR]:', error)}
+                            );
+                        });
+                    },
+                    (error) => { console.error(timestamp(show), '[getUploadURL ERROR]:', error); }
+            );
+        },
+        (error) => { console.error(timestamp(show), '[authorize error]:', error); }
+    );
 }

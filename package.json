@@ -9,9 +9,11 @@
   "author": "Tennyson Holloway <thollowa@ucsd.edu>",
   "license": "MIT",
   "dependencies": {
+    "backblaze-b2": "^0.9.12",
     "later": "^1.2.0",
     "moment": "^2.17.1",
     "node-schedule": "^1.2.0",
+    "path": "^0.12.7",
     "shelljs": "^0.7.6",
     "spinitron-spinpapi": "0.0.3"
   }
