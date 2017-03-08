@@ -76,7 +76,16 @@ let record = function(show) {
 
     /* create a promise for playlistID */
     let getPlaylistID = new Promise((function(show, resolve, reject)  {
-        let playlistFetchTime = moment(show['OffairTime'], 'HH:m:s').subtract(2, 'minutes');
+        var playlistFetchTime;
+        let diff = moment(show['OffairTime'], 'HH:m:s').diff(
+                       moment(show['OnairTime'], 'HH:m:s'),
+                       'hours'
+                   );
+        if (diff < 0) { /* show went into new day */
+            playlistFetchTime = moment(show['OffairTime'], 'HH:m:s').add(1, 'day').subtract(2, 'minutes');
+        } else {
+            playlistFetchTime = moment(show['OffairTime'], 'HH:m:s').subtract(2, 'minutes');
+        }
         console.log(timestamp(), "Scheduled playlist fetch for", playlistFetchTime.format('HH:mm:ss'));
         scheduler.scheduleJob(playlistFetchTime.toDate(), function() {
             spinitron.getCurrentPlaylist(show)
@@ -149,7 +158,7 @@ let backup = function(show, filename) {
                             b2.uploadFile( {
                                 uploadUrl: response.uploadUrl,
                                 uploadAuthToken: response.authorizationToken,
-                                filename: encodeURIComponent(path.basename(filename])),
+                                filename: encodeURIComponent(path.basename(filename)),
                                 data: data
                             }).then(
                                 (response) => {console.log(timestamp(show), 'Successfully uploaded.')},
