@@ -117,7 +117,7 @@ let record = function(show) {
                         "Moved",
                         `${RECORDING_DIR}/${filename}.mp3 -> ${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`
                     );
-                    b2(`${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`);
+                    backup(show, `${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`);
                     /* TODO: upload file to cloud storage */
                 })
                 .catch(error => {
