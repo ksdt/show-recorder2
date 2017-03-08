@@ -29,7 +29,7 @@ const RECORDING_DIR = "./temp_recordings";
 const RECORDING_OPTS = `-d ${RECORDING_DIR} -s -a`;
 const FINISHED_DIR = "./ps";
 
-let b2 = new b2({
+b2 = new b2({
     accountId: 'accoundid',
     applicationKey: 'appkey'
 });
