@@ -2,9 +2,9 @@ let spinitron = require('spinitron-spinpapi');
 let moment = require('moment');
 
 spinitron = new spinitron({
-                    station: 'ksdt',  /* optional */
-                    userid: 'x',
-                    secret: 'x'
+                    station: process.env.SPINSTATION,  /* optional */
+                    userid: process.env.SPINID,
+                    secret: process.env.SPINSECRET
             });
 
 /* gets the ON AIR playlist. */

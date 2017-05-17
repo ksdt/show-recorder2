@@ -20,21 +20,22 @@ let spinitron = require('./spinitron.js'),
     moment = require('moment'),
     scheduler = require('node-schedule'),
     b2 = require('backblaze-b2'),
-    path = require('path');
+    path = require('path'),
+    fs = require('fs');
 
 /* streamripper opts */
 const RECORDING_PROGRAM = 'streamripper';
 const RECORDING_URL = 'http://ksdt.ucsd.edu:8000/stream';
 const RECORDING_DIR = "./temp_recordings";
-const RECORDING_OPTS = `-d ${RECORDING_DIR} -s -a`;
+const RECORDING_OPTS = `-d ${RECORDING_DIR} -s -A -a`;
 const FINISHED_DIR = "./ps";
 
 b2 = new b2({
-    accountId: 'accoundid',
-    applicationKey: 'appkey'
+    accountId: process.env.B2ACCTID,
+    applicationKey: process.env.APPKEY
 });
 
-const B2_BUCKET = 'bukket';
+const B2_BUCKET = process.env.B2BUCKET;
 
 spinitron.getUpcomingShowInfo().then(show => {
     /* schedule recording to start at the top of the hour */
@@ -45,14 +46,14 @@ spinitron.getUpcomingShowInfo().then(show => {
         "Scheduled recording to start at",
         moment(recordingStartTime).format('hh:mma dddd MMMM Qo'),
         "for show",
-        show['ShowName'], "."
+        show['ShowName']
     );
 
 }).catch(error => {
     console.error(timestamp(), error);
     /* there is no show scheduled to start next hour. */
     /* since there is no show, we don't need to do anything. */
-    process.exit();
+    //process.exit();
 });
 
 /* called at the top of the hour when a show starts */
@@ -68,9 +69,9 @@ let record = function(show) {
 
     console.log( timestamp(show),
         "Starting to record",
-         show['ShowName'],
-         "for",
-         RECORDING_TIME,
+        show['ShowName'],
+        "for",
+        RECORDING_TIME,
         "seconds."
     );
 
@@ -94,8 +95,7 @@ let record = function(show) {
                         "Successfully fetched current playlist: ", playlist['PlaylistID']
                     );
                     resolve(playlist)
-                })
-                .catch(error => {
+                }, error => {
                     console.error( timestamp(show),
                         "Failed to fetch current playlist: ", error
                     );
@@ -127,9 +127,7 @@ let record = function(show) {
                         `${RECORDING_DIR}/${filename}.mp3 -> ${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`
                     );
                     backup(show, `${FINISHED_DIR}/${playlist['PlaylistID']}.mp3`);
-                    /* TODO: upload file to cloud storage */
-                })
-                .catch(error => {
+                }, error => {
                     /* playlist not found - default name ShowID-M-D-Y.mp3*/
                     shelljs.mv(`${RECORDING_DIR}/${filename}.mp3`,
                         `'${FINISHED_DIR}/${show['ShowID']}-${moment().format('M-D-Y')}.mp3'`);
@@ -137,6 +135,7 @@ let record = function(show) {
                         "Moved",
                         `${RECORDING_DIR}/${filename}.mp3 -> ${FINISHED_DIR}/${show['ShowID']}-${moment().format('M-D-Y')}.mp3`
                     );
+                    backup(show, `${FINISHED_DIR}/${show['ShowID']}-${moment().format('M-D-Y')}.mp3`);
                 });
 
 
@@ -150,25 +149,38 @@ let timestamp = function(show) {
 
 /* backs up file to b2 */
 let backup = function(show, filename) {
-    b2.authorize().then(
-        () => {
-            b2.getUploadUrl(B2_BUCKET).then(
-                    (response) => {
-                        fs.readFile(filename, function(err, data) {
-                            b2.uploadFile( {
-                                uploadUrl: response.uploadUrl,
-                                uploadAuthToken: response.authorizationToken,
-                                filename: encodeURIComponent(path.basename(filename)),
-                                data: data
-                            }).then(
-                                (response) => {console.log(timestamp(show), 'Successfully uploaded.')},
-                                (error) => {console.error(timestamp(show), '[UPLOAD ERROR]:', error)}
-                            );
-                        });
-                    },
-                    (error) => { console.error(timestamp(show), '[getUploadURL ERROR]:', error); }
-            );
-        },
-        (error) => { console.error(timestamp(show), '[authorize error]:', error); }
-    );
-}
+    return new Promise((resolve, reject) => {
+        b2.authorize().then(
+            (resp) => {
+                b2.getUploadUrl(B2_BUCKET).then(
+                        (response) => {
+                            fs.readFile(filename, function(err, data) {
+                                console.log("uploadUrl", response.data.uploadUrl)
+                                console.log("uploadAuthToken", response.data.authorizationToken)
+                                console.log("filename", path.basename(filename))
+                                b2.uploadFile( {
+                                    uploadUrl: response.data.uploadUrl,
+                                    uploadAuthToken: response.data.authorizationToken,
+                                    filename: encodeURIComponent(path.basename(filename)),
+                                    data: data,
+                                    info : {
+                                        show: show['ShowName'],
+                                        sid: show['ShowID']
+                                    },
+                                    onUploadProgress: function(evt) {
+                                        console.log(evt);
+                                    }
+                                }).then(
+                                    (resp) => { console.log(timestamp(show), 'Successfully uploaded.'); resolve(resp); },
+                                    (error) => {console.error(timestamp(show), '[UPLOAD ERROR]:', error); reject(error); }
+                                );
+                            });
+                        },
+                        (error) => { console.log(timestamp(show), '[authorize error]:', error); }
+                );
+            },
+            (error) => { console.log(timestamp(show), '[authorize error]:', error); }
+        );
+    });
+};
+backup({ShowName: "Drink Me Mix-tape", sid: 342}, "./ps/11138.mp3")
